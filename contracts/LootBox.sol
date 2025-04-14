@@ -47,6 +47,18 @@ contract LootBox is ERC1155, Ownable {
         uint8 freeMints
     );
 
+// Reentrancy guard implementation
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status = _NOT_ENTERED;
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+
     constructor() ERC1155("BitBeta Skin", "LB", "https://api.ipfs.metadata/") {}
 
     function updateMintConfig(
@@ -90,21 +102,21 @@ contract LootBox is ERC1155, Ownable {
         require(success, "Transfer failed.");
     }
 
-    function mintPublic(uint256 quantity) external payable {
+    function mintPublic(uint256 quantity) external payable nonReentrant { // Added nonReentrant
         _mintTokens(quantity, MintType.Public, new bytes32[](0));
     }
 
     function mintWL1(
         uint256 quantity,
         bytes32[] calldata proof
-    ) external payable {
+    ) external payable nonReentrant { // Added nonReentrant
         _mintTokens(quantity, MintType.WL1, proof);
     }
 
     function mintWL2(
         uint256 quantity,
         bytes32[] calldata proof
-    ) external payable {
+    ) external payable nonReentrant { // Added nonReentrant
         _mintTokens(quantity, MintType.WL2, proof);
     }
 
@@ -112,7 +124,7 @@ contract LootBox is ERC1155, Ownable {
         uint256 quantity,
         MintType mintType,
         bytes32[] memory proof
-    ) internal {
+    ) internal nonReentrant { // Added internal nonReentrant for extra protection
         MintConfig memory config = mintConfigs[mintType];
         require(
             block.timestamp >= config.startTime &&
@@ -148,10 +160,12 @@ contract LootBox is ERC1155, Ownable {
 
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = _getRandomTokenId();
-            _mint(msg.sender, tokenId, 1, "");
+            // Update all state before external call
             tokenIdSupply[tokenId]++;
             totalMinted++;
             emit Minted(msg.sender, tokenId, mintType);
+            // Safe mint after state updates
+            _mint(msg.sender, tokenId, 1, "");
         }
     }
 

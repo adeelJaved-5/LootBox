@@ -6,7 +6,6 @@ import {Ownable} from "./Utils.sol";
 import {MerkleProof} from "./Utils.sol";
 
 contract LootBox is ERC1155, Ownable {
-
     uint256 public maxSupply = 5000;
     uint256 public totalMinted;
 
@@ -46,7 +45,7 @@ contract LootBox is ERC1155, Ownable {
         uint8 freeMints
     );
 
-// Reentrancy guard implementation
+    // Reentrancy guard implementation
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
     uint256 private _status = _NOT_ENTERED;
@@ -101,21 +100,22 @@ contract LootBox is ERC1155, Ownable {
         require(success, "Transfer failed.");
     }
 
-    function mintPublic(uint256 quantity) external payable nonReentrant { // Added nonReentrant
+    function mintPublic(uint256 quantity) external payable nonReentrant {
         _mintTokens(quantity, MintType.Public, new bytes32[](0));
     }
 
     function mintWL1(
         uint256 quantity,
         bytes32[] calldata proof
-    ) external payable nonReentrant { // Added nonReentrant
+    ) external payable nonReentrant {
         _mintTokens(quantity, MintType.WL1, proof);
     }
 
     function mintWL2(
         uint256 quantity,
         bytes32[] calldata proof
-    ) external payable nonReentrant { // Added nonReentrant
+    ) external payable nonReentrant {
+        // Added nonReentrant
         _mintTokens(quantity, MintType.WL2, proof);
     }
 
@@ -123,7 +123,8 @@ contract LootBox is ERC1155, Ownable {
         uint256 quantity,
         MintType mintType,
         bytes32[] memory proof
-    ) internal nonReentrant { // Added internal nonReentrant for extra protection
+    ) internal nonReentrant {
+        // Added internal nonReentrant for extra protection
         MintConfig memory config = mintConfigs[mintType];
         require(
             block.timestamp >= config.startTime &&
@@ -159,24 +160,27 @@ contract LootBox is ERC1155, Ownable {
 
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = _getRandomTokenId();
-            // Update all state before external call
             tokenIdSupply[tokenId]++;
             totalMinted++;
             emit Minted(msg.sender, tokenId, mintType);
-            // Safe mint after state updates
             _mint(msg.sender, tokenId, 1, "");
         }
     }
 
     function _getRandomTokenId() internal view returns (uint256) {
+        // Ensure blockhashes are available
+        require(block.number - 5 > 0, "Insufficient block history");
+
         uint256 rand = uint256(
             keccak256(
                 abi.encodePacked(
                     msg.sender,
-                    tx.gasprice,
-                    block.timestamp,
+                    totalMinted,
                     blockhash(block.number - 1),
-                    totalMinted
+                    blockhash(block.number - 3),
+                    blockhash(block.number - 5),
+                    block.difficulty,
+                    address(this).balance
                 )
             )
         ) % 100;
@@ -188,6 +192,6 @@ contract LootBox is ERC1155, Ownable {
                 return tokenIdPool[i];
             }
         }
-        return tokenIdPool[tokenIdPool.length - 1]; // fallback
+        return tokenIdPool[tokenIdPool.length - 1];
     }
 }

@@ -12,7 +12,6 @@ contract LootBox is ERC1155, Ownable {
 
     uint256[] public tokenIdPool = [1, 2, 3, 4, 5, 6, 7];
     uint256[] public tokenProbabilities = [32, 32, 15, 10, 6, 4, 1];
-    uint256 private constant CALLBACK_GAS_LIMIT = 50000;
 
     enum MintType {
         Public,
@@ -47,7 +46,6 @@ contract LootBox is ERC1155, Ownable {
         uint8 freeMints
     );
 
-    // Reentrancy guard implementation
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
     uint256 private _status = _NOT_ENTERED;
@@ -60,6 +58,16 @@ contract LootBox is ERC1155, Ownable {
     }
 
     constructor() ERC1155("BitBeta Skin", "LB", "https://api.ipfs.metadata/") {}
+
+    function _mint(
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) internal override {
+        super._mint(to, id, amount, data);
+        emit TransferSingle(_msgSender(), address(0), to, id, amount);
+    }
 
     function updateMintConfig(
         MintType mintType,
@@ -88,7 +96,7 @@ contract LootBox is ERC1155, Ownable {
     }
 
     function setURI(string memory newURI) external onlyOwner {
-        _setURI(newURI); // Calls the internal ERC1155 _setURI function
+        _setURI(newURI);
         emit URIUpdated(newURI);
     }
 
@@ -117,7 +125,6 @@ contract LootBox is ERC1155, Ownable {
         uint256 quantity,
         bytes32[] calldata proof
     ) external payable nonReentrant {
-        // Added nonReentrant
         _mintTokens(quantity, MintType.WL2, proof);
     }
 
@@ -127,6 +134,8 @@ contract LootBox is ERC1155, Ownable {
         bytes32[] memory proof
     ) internal nonReentrant {
         require(quantity > 0, "Must mint at least 1 NFT");
+        require(totalMinted + quantity <= maxSupply, "Max supply reached");
+
         MintConfig memory config = mintConfigs[mintType];
         require(
             block.timestamp >= config.startTime &&
@@ -158,17 +167,16 @@ contract LootBox is ERC1155, Ownable {
 
         require(msg.value == paidQuantity * config.price, "Incorrect ETH sent");
 
-        // Mint all tokens (both free and paid)
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = _getRandomTokenId();
             tokenIdSupply[tokenId]++;
+            totalMinted++;
             emit Minted(msg.sender, tokenId, mintType);
-            _mint(msg.sender, tokenId, 1, abi.encode(CALLBACK_GAS_LIMIT));
+            _mint(msg.sender, tokenId, 1, ""); // Empty data prevents callbacks
         }
     }
 
     function _getRandomTokenId() internal view returns (uint256) {
-        // Ensure blockhashes are available
         require(block.number - 5 > 0, "Insufficient block history");
 
         uint256 rand = uint256(
@@ -195,7 +203,6 @@ contract LootBox is ERC1155, Ownable {
         return tokenIdPool[tokenIdPool.length - 1];
     }
 
-    // Override the transfer acceptance check with gas limiting
     function _doSafeTransferAcceptanceCheck(
         address operator,
         address from,
@@ -204,11 +211,11 @@ contract LootBox is ERC1155, Ownable {
         uint256 value,
         bytes memory data
     ) internal override {
-        uint256 gasLimit = abi.decode(data, (uint256));
+        if (from == address(0)) return; // Skip for mints
 
         if (to.code.length > 0) {
             try
-                IERC1155Receiver(to).onERC1155Received{gas: gasLimit}(
+                IERC1155Receiver(to).onERC1155Received(
                     operator,
                     from,
                     id,

@@ -179,7 +179,7 @@ contract LootBox is ERC1155, Ownable {
                     blockhash(block.number - 1),
                     blockhash(block.number - 3),
                     blockhash(block.number - 5),
-                    block.difficulty,
+                    block.prevrandao,
                     address(this).balance
                 )
             )

@@ -126,17 +126,16 @@ contract LootBox is ERC1155, Ownable {
         MintType mintType,
         bytes32[] memory proof
     ) internal nonReentrant {
-        // Added internal nonReentrant for extra protection
+        require(quantity > 0, "Must mint at least 1 NFT");
         MintConfig memory config = mintConfigs[mintType];
         require(
             block.timestamp >= config.startTime &&
                 block.timestamp <= config.endTime,
             "Mint not active"
         );
-        require(totalMinted + quantity <= maxSupply, "Max supply reached");
 
         uint256 paidQuantity = quantity;
-        uint256 alreadyClaimed = userMints[msg.sender][mintType];
+        uint256 freeQuantity = 0;
 
         if (mintType != MintType.Public) {
             bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
@@ -145,25 +144,24 @@ contract LootBox is ERC1155, Ownable {
                 "Not whitelisted"
             );
 
-            if (alreadyClaimed < config.freeMintsAllowed) {
-                uint256 freeRemaining = config.freeMintsAllowed -
-                    alreadyClaimed;
-                uint256 freeToUse = quantity > freeRemaining
+            uint256 freeMintsUsed = userMints[msg.sender][mintType];
+            if (freeMintsUsed < config.freeMintsAllowed) {
+                uint256 freeRemaining = config.freeMintsAllowed - freeMintsUsed;
+                freeQuantity = quantity > freeRemaining
                     ? freeRemaining
                     : quantity;
-                paidQuantity -= freeToUse;
-                userMints[msg.sender][mintType] += quantity;
-            } else {
-                userMints[msg.sender][mintType] += quantity;
+                paidQuantity = quantity - freeQuantity;
+                // Only update free mints count
+                userMints[msg.sender][mintType] += freeQuantity;
             }
         }
 
         require(msg.value == paidQuantity * config.price, "Incorrect ETH sent");
 
+        // Mint all tokens (both free and paid)
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = _getRandomTokenId();
             tokenIdSupply[tokenId]++;
-            totalMinted++;
             emit Minted(msg.sender, tokenId, mintType);
             _mint(msg.sender, tokenId, 1, abi.encode(CALLBACK_GAS_LIMIT));
         }

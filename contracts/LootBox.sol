@@ -9,7 +9,6 @@ contract LootBox is ERC1155, Ownable {
 
     uint256 public maxSupply = 5000;
     uint256 public totalMinted;
-    string public baseURI;
 
     uint256[] public tokenIdPool = [1, 2, 3, 4, 5, 6, 7];
     uint256[] public tokenProbabilities = [32, 32, 15, 10, 6, 4, 1];
@@ -87,8 +86,8 @@ contract LootBox is ERC1155, Ownable {
         );
     }
 
-    function setBaseURI(string memory newURI) external onlyOwner {
-        baseURI = newURI;
+    function setURI(string memory newURI) external onlyOwner {
+        _setURI(newURI); // Calls the internal ERC1155 _setURI function
         emit URIUpdated(newURI);
     }
 

@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {ERC1155} from "./Utils.sol";
 import {Ownable} from "./Utils.sol";
 import {MerkleProof} from "./Utils.sol";
+import {IERC1155Receiver} from "./Utils.sol";
 
 contract LootBox is ERC1155, Ownable {
     uint256 public maxSupply = 5000;
@@ -11,6 +12,7 @@ contract LootBox is ERC1155, Ownable {
 
     uint256[] public tokenIdPool = [1, 2, 3, 4, 5, 6, 7];
     uint256[] public tokenProbabilities = [32, 32, 15, 10, 6, 4, 1];
+    uint256 private constant CALLBACK_GAS_LIMIT = 50000;
 
     enum MintType {
         Public,
@@ -163,7 +165,7 @@ contract LootBox is ERC1155, Ownable {
             tokenIdSupply[tokenId]++;
             totalMinted++;
             emit Minted(msg.sender, tokenId, mintType);
-            _mint(msg.sender, tokenId, 1, "");
+            _mint(msg.sender, tokenId, 1, abi.encode(CALLBACK_GAS_LIMIT));
         }
     }
 
@@ -193,5 +195,35 @@ contract LootBox is ERC1155, Ownable {
             }
         }
         return tokenIdPool[tokenIdPool.length - 1];
+    }
+
+    // Override the transfer acceptance check with gas limiting
+    function _doSafeTransferAcceptanceCheck(
+        address operator,
+        address from,
+        address to,
+        uint256 id,
+        uint256 value,
+        bytes memory data
+    ) internal override {
+        uint256 gasLimit = abi.decode(data, (uint256));
+
+        if (to.code.length > 0) {
+            try
+                IERC1155Receiver(to).onERC1155Received{gas: gasLimit}(
+                    operator,
+                    from,
+                    id,
+                    value,
+                    data
+                )
+            returns (bytes4 response) {
+                if (response != IERC1155Receiver.onERC1155Received.selector) {
+                    revert("ERC1155: ERC1155Receiver rejected tokens");
+                }
+            } catch {
+                revert("ERC1155: transfer to non ERC1155Receiver implementer");
+            }
+        }
     }
 }

@@ -838,7 +838,7 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         uint256 id,
         uint256 value,
         bytes memory data
-    ) private {
+    ) internal virtual {
         if (to.code.length > 0) {
             try
                 IERC1155Receiver(to).onERC1155Received(

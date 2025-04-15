@@ -190,7 +190,7 @@ contract LootBox is ERC1155, Ownable {
         // Increment nonce for each generation
         _entropyNonce++;
         uint256 rand = uint256(
-             keccak256(
+            keccak256(
                 abi.encodePacked(
                     msg.sender,
                     tx.gasprice,

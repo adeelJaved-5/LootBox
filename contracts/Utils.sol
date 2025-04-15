@@ -810,15 +810,6 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         _totalSupply[id] += value;
 
         emit TransferSingle(_msgSender(), address(0), to, id, value);
-
-        _doSafeTransferAcceptanceCheck(
-            _msgSender(),
-            address(0),
-            to,
-            id,
-            value,
-            data
-        );
     }
 
     function _setApprovalForAll(

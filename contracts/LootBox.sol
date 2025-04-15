@@ -169,7 +169,7 @@ contract LootBox is ERC1155, Ownable {
         require(msg.value == paidQuantity * config.price, "Incorrect ETH sent");
 
         for (uint256 i = 0; i < quantity; i++) {
-            uint256 tokenId = _getRandomTokenId(msg.sender);
+            uint256 tokenId = _getRandomTokenId();
             tokenIdSupply[tokenId]++;
             totalMinted++;
             emit Minted(msg.sender, tokenId, mintType);
@@ -177,17 +177,21 @@ contract LootBox is ERC1155, Ownable {
         }
     }
 
-    function _getRandomTokenId(address user) internal returns (uint256) {
+    function _getRandomTokenId() internal returns (uint256) {
         // Increment nonce for each generation
         _entropyNonce++;
-        
-        uint256 rand = uint256(keccak256(abi.encodePacked(
-            block.prevrandao,
-            blockhash(block.number - 1),
-            user,
-            address(this).balance,
-            _entropyNonce           
-        ))) % 100;
+
+        uint256 rand = uint256(
+            keccak256(
+                abi.encodePacked(
+                    msg.sender,
+                    tx.gasprice,
+                    block.timestamp,
+                    blockhash(block.number),
+                    totalMinted
+                )
+            )
+        ) % 100;
 
         uint256 cumulative;
         for (uint256 i = 0; i < tokenProbabilities.length; i++) {

@@ -202,33 +202,4 @@ contract LootBox is ERC1155, Ownable {
         }
         return tokenIdPool[tokenIdPool.length - 1];
     }
-
-    function _doSafeTransferAcceptanceCheck(
-        address operator,
-        address from,
-        address to,
-        uint256 id,
-        uint256 value,
-        bytes memory data
-    ) internal override {
-        if (from == address(0)) return; // Skip for mints
-
-        if (to.code.length > 0) {
-            try
-                IERC1155Receiver(to).onERC1155Received(
-                    operator,
-                    from,
-                    id,
-                    value,
-                    data
-                )
-            returns (bytes4 response) {
-                if (response != IERC1155Receiver.onERC1155Received.selector) {
-                    revert("ERC1155: ERC1155Receiver rejected tokens");
-                }
-            } catch {
-                revert("ERC1155: transfer to non ERC1155Receiver implementer");
-            }
-        }
-    }
 }

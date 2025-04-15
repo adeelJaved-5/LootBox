@@ -9,6 +9,7 @@ import {IERC1155Receiver} from "./Utils.sol";
 contract LootBox is ERC1155, Ownable {
     uint256 public maxSupply = 5000;
     uint256 public totalMinted;
+    uint256 private _entropyNonce;
 
     uint256[] public tokenIdPool = [1, 2, 3, 4, 5, 6, 7];
     uint256[] public tokenProbabilities = [32, 32, 15, 10, 6, 4, 1];
@@ -168,7 +169,7 @@ contract LootBox is ERC1155, Ownable {
         require(msg.value == paidQuantity * config.price, "Incorrect ETH sent");
 
         for (uint256 i = 0; i < quantity; i++) {
-            uint256 tokenId = _getRandomTokenId();
+            uint256 tokenId = _getRandomTokenId(msg.sender);
             tokenIdSupply[tokenId]++;
             totalMinted++;
             emit Minted(msg.sender, tokenId, mintType);
@@ -176,24 +177,19 @@ contract LootBox is ERC1155, Ownable {
         }
     }
 
-    function _getRandomTokenId() internal view returns (uint256) {
-        require(block.number - 5 > 0, "Insufficient block history");
+    function _getRandomTokenId(address user) internal returns (uint256) {
+        // Increment nonce for each generation
+        _entropyNonce++;
+        
+        uint256 rand = uint256(keccak256(abi.encodePacked(
+            block.prevrandao,
+            blockhash(block.number - 1),
+            user,
+            address(this).balance,
+            _entropyNonce           
+        ))) % 100;
 
-        uint256 rand = uint256(
-            keccak256(
-                abi.encodePacked(
-                    msg.sender,
-                    totalMinted,
-                    blockhash(block.number - 1),
-                    blockhash(block.number - 3),
-                    blockhash(block.number - 5),
-                    block.prevrandao,
-                    address(this).balance
-                )
-            )
-        ) % 100;
-
-        uint256 cumulative = 0;
+        uint256 cumulative;
         for (uint256 i = 0; i < tokenProbabilities.length; i++) {
             cumulative += tokenProbabilities[i];
             if (rand < cumulative) {

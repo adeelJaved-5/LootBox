@@ -113,6 +113,7 @@ contract LootBox is ERC1155, Ownable {
 
         uint256 sum;
         for (uint256 i = 0; i < len; ) {
+            require(newProbabilities[i] > 0, "Probability cannot be zero");
             sum += newProbabilities[i];
             unchecked {
                 ++i;

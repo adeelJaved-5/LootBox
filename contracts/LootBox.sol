@@ -196,7 +196,8 @@ contract LootBox is ERC1155, Ownable {
                     msg.sender,
                     tx.gasprice,
                     block.timestamp,
-                    blockhash(block.number)
+                    blockhash(block.number),
+                    _entropyNonce
                 )
             )
         ) % 100;

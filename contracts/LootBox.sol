@@ -149,7 +149,7 @@ contract LootBox is ERC1155, Ownable {
         uint256 quantity,
         MintType mintType,
         bytes32[] memory proof
-    ) internal nonReentrant {
+    ) internal {
         require(quantity > 0, "Must mint at least 1 NFT");
 
         MintConfig memory config = mintConfigs[mintType];
